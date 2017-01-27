@@ -282,10 +282,19 @@ if [ "$SOLR_DEPLOYMENT" = "standalone" ]; then
     mkdir -p $SOLR_RANGER_HOME/${SOLR_RANGER_COLLECTION}/conf
     cp -r conf/* $SOLR_RANGER_HOME/${SOLR_RANGER_COLLECTION}/conf
 
-    sed  -e "s#{{MAX_AUDIT_RETENTION_DAYS}}#$MAX_AUDIT_RETENTION_DAYS#g" $SOLR_RANGER_HOME/${SOLR_RANGER_COLLECTION}/conf/solrconfig.xml.j2 > $SOLR_RANGER_HOME/${SOLR_RANGER_COLLECTION}/conf/solrconfig.xml
     sed  "s#{{RANGER_AUDITS_DATA_FOLDER}}#$SOLR_RANGER_DATA_FOLDER#g" $SOLR_RANGER_HOME/${SOLR_RANGER_COLLECTION}/core.properties.j2 > $SOLR_RANGER_HOME/${SOLR_RANGER_COLLECTION}/core.properties
     sed  -e "s#{{JAVA_HOME}}#$JAVA_HOME#g" -e "s#{{SOLR_USER}}#$SOLR_USER#g"  -e "s#{{SOLR_MAX_MEM}}#$SOLR_MAX_MEM#g" -e "s#{{SOLR_INSTALL_DIR}}#$SOLR_INSTALL_FOLDER#g" -e "s#{{SOLR_RANGER_HOME}}#$SOLR_RANGER_HOME#g" -e "s#{{SOLR_PORT}}#$SOLR_RANGER_PORT#g" -e "s#{{SOLR_LOG_FOLDER}}#$SOLR_LOG_FOLDER#g" $SOLR_RANGER_HOME/scripts/solr.in.sh.j2 > $SOLR_RANGER_HOME/scripts/solr.in.sh
-    
+
+    #Update Solr version in luceneMatchVersion tag of solrconfig.xml
+    #Remove AdminHandlers block from solrconfig.xml if SOLR_VERSION >= 5.5
+    #use awk because we're comparing decimals
+    if echo "$SOLR_VERSION" "5.5" | awk '{exit $1>=$2?0:1}'
+    then
+        sed -e "s#{{MAX_AUDIT_RETENTION_DAYS}}#$MAX_AUDIT_RETENTION_DAYS#g" -e "s#{{SOLR_VERSION}}#$SOLR_VERSION#g" -e "s#<!-- Admin Handlers#<!-- Admin Handlers Disabled for Solr 5.5+#g" -e "s#{{ADMIN_HANDLERS_OPEN}}#<!--  #g" -e "s#{{ADMIN_HANDLERS_CLOSE}}#  -->#g" $SOLR_RANGER_HOME/${SOLR_RANGER_COLLECTION}/conf/solrconfig.xml.j2 > $SOLR_RANGER_HOME/${SOLR_RANGER_COLLECTION}/conf/solrconfig.xml
+    else
+      sed -e "s#{{MAX_AUDIT_RETENTION_DAYS}}#$MAX_AUDIT_RETENTION_DAYS#g" -e "s#{{SOLR_VERSION}}#$SOLR_VERSION#g" -e "s#{{ADMIN_HANDLERS_OPEN}}# #g" -e "s#{{ADMIN_HANDLERS_CLOSE}}# #g" $SOLR_RANGER_HOME/${SOLR_RANGER_COLLECTION}/conf/solrconfig.xml.j2 > $SOLR_RANGER_HOME/${SOLR_RANGER_COLLECTION}/conf/solrconfig.xml
+    fi
+
 else
     echo "`date`|INFO|Configuring SolrCloud instance"
     cp -r solr_cloud/* $SOLR_RANGER_HOME
@@ -296,14 +305,21 @@ else
     #FIRST_SOLR_ZK=$(IFS="," ; set -- $SOLR_ZK ; echo $1)
     FIRST_SOLR_ZK=$SOLR_ZK
 
-    sed  -e "s#{{MAX_AUDIT_RETENTION_DAYS}}#$MAX_AUDIT_RETENTION_DAYS#g" $SOLR_RANGER_HOME/conf/solrconfig.xml.j2 > $SOLR_RANGER_HOME/conf/solrconfig.xml
-
     sed  -e "s#{{JAVA_HOME}}#$JAVA_HOME#g" -e "s#{{SOLR_USER}}#$SOLR_USER#g"  -e "s#{{SOLR_MAX_MEM}}#$SOLR_MAX_MEM#g" -e "s#{{SOLR_INSTALL_DIR}}#$SOLR_INSTALL_FOLDER#g" -e "s#{{SOLR_RANGER_HOME}}#$SOLR_RANGER_HOME#g" -e "s#{{SOLR_PORT}}#$SOLR_RANGER_PORT#g" -e "s#{{SOLR_ZK}}#$SOLR_ZK#g" -e "s#{{SOLR_LOG_FOLDER}}#$SOLR_LOG_FOLDER#g" $SOLR_RANGER_HOME/scripts/solr.in.sh.j2 > $SOLR_RANGER_HOME/scripts/solr.in.sh
 
     sed -e "s#{{JAVA_HOME}}#$JAVA_HOME#g" -e "s#{{SOLR_USER}}#$SOLR_USER#g" -e "s#{{SOLR_INSTALL_DIR}}#$SOLR_INSTALL_FOLDER#g" -e "s#{{SOLR_RANGER_HOME}}#$SOLR_RANGER_HOME#g" -e "s#{{SOLR_ZK}}#$FIRST_SOLR_ZK#g" $SOLR_RANGER_HOME/scripts/add_ranger_audits_conf_to_zk.sh.j2 > $SOLR_RANGER_HOME/scripts/add_ranger_audits_conf_to_zk.sh
     sed -e "s#{{JAVA_HOME}}#$JAVA_HOME#g" -e "s#{{SOLR_INSTALL_DIR}}#$SOLR_INSTALL_FOLDER#g" -e "s#{{SOLR_ZK}}#$SOLR_ZK#g" -e "s#{{SOLR_HOST_URL}}#$SOLR_HOST_URL#g"  -e "s#{{SOLR_SHARDS}}#$SOLR_SHARDS#g"  -e "s#{{SOLR_REPLICATION}}#$SOLR_REPLICATION#g"  $SOLR_RANGER_HOME/scripts/create_ranger_audits_collection.sh.j2 > $SOLR_RANGER_HOME/scripts/create_ranger_audits_collection.sh
     sed -e "s#{{SOLR_PORT}}#$SOLR_RANGER_PORT#g" $SOLR_RANGER_HOME/solr.xml.j2 > $SOLR_RANGER_HOME/solr.xml
 
+    #Update Solr version in luceneMatchVersion tag of solrconfig.xml
+    #Remove AdminHandlers block from solrconfig.xml if SOLR_VERSION >= 5.5
+    #use awk because we're comparing decimals
+    if echo "$SOLR_VERSION" "5.5" | awk '{exit $1>=$2?0:1}'
+    then
+        sed -e "s#{{MAX_AUDIT_RETENTION_DAYS}}#$MAX_AUDIT_RETENTION_DAYS#g" -e "s#{{SOLR_VERSION}}#$SOLR_VERSION#g" -e "s#<!-- Admin Handlers#<!-- Admin Handlers Disabled for Solr 5.5+#g" -e "s#{{ADMIN_HANDLERS_OPEN}}#<!--  #g" -e "s#{{ADMIN_HANDLERS_CLOSE}}#  -->#g" $SOLR_RANGER_HOME/conf/solrconfig.xml.j2 > $SOLR_RANGER_HOME/conf/solrconfig.xml
+    else
+      sed -e "s#{{MAX_AUDIT_RETENTION_DAYS}}#$MAX_AUDIT_RETENTION_DAYS#g" -e "s#{{SOLR_VERSION}}#$SOLR_VERSION#g" -e "s#{{ADMIN_HANDLERS_OPEN}}# #g" -e "s#{{ADMIN_HANDLERS_CLOSE}}# #g" $SOLR_RANGER_HOME/conf/solrconfig.xml.j2 > $SOLR_RANGER_HOME/conf/solrconfig.xml
+    fi
 fi
 
 #Common overrides
